@@ -26,10 +26,13 @@ make O=../build olddefconfig
 make -j$(nproc) O=../build bzImage modules
 
 %install
+mkdir -p %{buildroot}/boot
 make O=../build INSTALL_MOD_PATH=%{buildroot} modules_install
 
 install -m 644 ../build/arch/x86/boot/bzImage \
     %{buildroot}/boot/vmlinuz-%{version}-pulsaros
+mv %{buildroot}/lib/modules/%{version} \
+    %{buildroot}/lib/modules/%{version}-pulsaros
 %post
 /sbin/dracut --regenerate-cmdline --force   
 
@@ -40,7 +43,6 @@ install -m 644 ../build/arch/x86/boot/bzImage \
 
 %files
 /boot/vmlinuz-%{version}-pulsaros
-/boot/initramfs-*-%{version}-pulsaros.img
 /lib/modules/%{version}-pulsaros
 
 %changelog   # filled by update-spec.sh
