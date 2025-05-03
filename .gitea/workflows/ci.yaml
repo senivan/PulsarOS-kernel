@@ -1,0 +1,23 @@
+name: Build Kernel
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y rpmdevtools rpmlint jq
+      - name: Fetch Kernel
+        run: |
+          KVER=$(scripts/fetch-upstream.sh)
+          echo "KVER=${KVER}" >> $GITHUB_ENV
+      - name: Update spec
+        run: scripts/update-spec.sh ${{ env.KVER }}
+      - name: Build & Install RPM
+        run: scripts/build-rpm.sh
+      - name: Install & Reboot
+        if: github.ref == 'refs/heads/main'
+        run: scripts/install-kernel.sh
