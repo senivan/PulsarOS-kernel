@@ -19,7 +19,7 @@ Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
 export KBUILD_OUTPUT=$(pwd)/build
 cp %{local_defconfig} build/.config
 # Overlay fragments
-for frag in config/fragments/*.cfg; do
+for frag in config/conf.d/*.config; do
   scripts/kconfig/merge_config.sh build/.config $frag
 done
 make -C build olddefconfig
