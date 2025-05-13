@@ -77,7 +77,7 @@ EOF
          --verbose \
          --no-early-microcode \
          --no-hostonly-cmdline \
-         boot/initramfs-%{krel}.img || true
+         boot/initramfs-%{krel}.img
 popd >/dev/null
 
 %post
