@@ -35,10 +35,15 @@ KCONFIG_CONFIG="$BUILD_DIR/.config" \
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
   make -C "$SOURCE_DIR" O="$BUILD_DIR" modules_install
 
-cp "$BUILD_DIR"/arch/x86/boot/bzImage /boot/vmlinuz-6.14.6-pulsaros
+cp -v "$BUILD_DIR"/arch/x86/boot/bzImage /boot/vmlinuz-6.14.6-pulsaros
 cp -v "$BUILD_DIR"/System.map /boot/System.map-6.14.6-pulsaros
-kernel-install add 6.14.6-pulsaros /boot/vmlinuz-6.14.6-pulsaros
+echo "Starting kernel installation..."
+dracut --force --kver 6.14.6-pulsaros \
+       --tmpdir /root/dracut-tmp \
+       --hostonly \
+       /boot/initramfs-6.14.6-pulsaros.img
 
+kernel-install add 6.14.6-pulsaros /boot/vmlinuz-6.14.6-pulsaros
 GRUB_CFG="/etc/default/grub"
 cp "${GRUB_CFG}" "${GRUB_CFG}.dpdkbak"
 if grep -q "isolcpus=" "${GRUB_CFG}"; then

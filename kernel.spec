@@ -8,10 +8,11 @@ URL:            https://www.kernel.org/
 Source0:        kernel-%{version}.tar.xz
 Source1:        config/base.config
 
+# Definitions
+%define debug_package %{nil}
 %define local_defconfig %{_sourcedir}/config/base.config
-%define _debugsource_template %{nil}
-%define builddir %{_builddir}/linux-%{version}
-%define krel %{version}-pulsaros
+%define builddir       %{_builddir}/linux-%{version}
+%define krel           %{version}-pulsaros
 
 %description
 Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
@@ -20,78 +21,68 @@ Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
 %autosetup -n linux-%{version} -p1
 
 %build
+# Standard out-of-tree build
 mkdir -p %{_builddir}/build
 cp %{local_defconfig} %{_builddir}/build/.config
 make -C %{builddir} O=%{_builddir}/build olddefconfig
 make -C %{builddir} O=%{_builddir}/build -j$(nproc) all
 
 %install
-# 1) Install modules into buildroot
+# 1) Install modules into the buildroot
 make -C %{builddir} \
      O=%{_builddir}/build \
      INSTALL_MOD_PATH=%{buildroot} \
      modules_install
 
-# 2) Stage dracut snippet for virtio _before_ initramfs build
-install -d %{buildroot}/etc/dracut.conf.d
-install -m 644 %{_sourcedir}/dracut/virtio.conf \
-              %{buildroot}/etc/dracut.conf.d/virtio.conf
-
-# 3) Install the kernel image
-install -d %{buildroot}/boot
-install -m 644 %{_builddir}/build/arch/x86/boot/bzImage \
-              %{buildroot}/boot/vmlinuz-%{krel}
-
-# 4) Rename modules directory to match krel
+# 2) Rename modules directory to match our krel
 mv %{buildroot}/lib/modules/%{version} \
    %{buildroot}/lib/modules/%{krel}
 
-# 5) Build initramfs **inside** the buildroot
-pushd %{buildroot} >/dev/null
-  # Debug output
-  echo "Available modules in %{buildroot}/lib/modules/%{krel}:"
-  find lib/modules/%{krel} -name "*.ko*" | grep -E '(virtio|ext)' || true
-  
-  # Create directories
-  mkdir -p var/tmp boot
-  
-  # Create minimal dracut configs
-  mkdir -p etc/dracut.conf.d/
-  cat > etc/dracut.conf.d/90-minimal.conf << EOF
+# 3) Stage minimal dracut snippet (drop‑in)
+install -d %{buildroot}/etc/dracut.conf.d
+cat > %{buildroot}/etc/dracut.conf.d/90-minimal.conf << 'EOF'
+# Minimal dracut config for PulsarOS kernel
 hostonly="no"
-filesystems="ext4"
-omit_drivers+=" ext4 "
-add_drivers+=" virtio_pci virtio_net "
 install_items+=" /sbin/e2fsck /sbin/fsck.ext4 /etc/fstab "
 EOF
 
-  # IMPORTANT: Create empty file first as fallback
-  touch boot/initramfs-%{krel}.img
-  
-  # Run dracut with RELATIVE path (no leading slash)
-  dracut --force --kver %{krel} \
-         --add "base kernel-modules rootfs-block fs-lib" \
-         --tmpdir var/tmp \
-         --no-hostonly \
-         --no-compress \
-         --verbose \
-         --no-early-microcode \
-         --no-hostonly-cmdline \
-         boot/initramfs-%{krel}.img
-popd >/dev/null
+# 4) Install the kernel image
+install -d %{buildroot}/boot
+install -m 644 \
+  %{_builddir}/build/arch/x86/boot/bzImage \
+  %{buildroot}/boot/vmlinuz-%{krel}
 
+# 5) Ensure dracut has a tempdir in the sysroot
+mkdir -p %{buildroot}/var/tmp
+
+# 6) Build the initramfs using host dracut, against buildroot
+dracut \
+  --kmoddir %{buildroot}/lib/modules/%{krel} \
+  --tmpdir /var/tmp \
+  --force --kver %{krel} \
+  --filesystems ext4 \
+  --add-drivers "virtio_net virtio_blk virtio_pci" \
+  --add "base kernel-modules rootfs-block fs-lib" \
+  --no-hostonly \
+  --no-compress \
+  --verbose \
+  --no-early-microcode \
+  --no-hostonly-cmdline \
+  %{buildroot}/boot/initramfs-%{krel}.img
 %post
 ROOT_UUID=$(findmnt -n -o UUID /)
 /sbin/grubby --add-kernel=/boot/vmlinuz-%{krel} \
+             --initrd=/boot/initramfs-%{krel}.img \
              --title="PulsarOS Kernel %{version}" \
              --args="hugepagesz=2M default_hugepagesz=2M root=UUID=${ROOT_UUID} rootfstype=ext4 rootwait"
+
 %files
 /boot/vmlinuz-%{krel}
 /boot/initramfs-%{krel}.img
 /lib/modules/%{krel}
 /etc/dracut.conf.d/90-minimal.conf
-/etc/dracut.conf.d/virtio.conf
+%exclude /root/rpmbuild/BUILD/linux-6.14.6
 
 %changelog
 * Tue May 13 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.14.6-1
-- Stage virtio.conf before dracut runs  
+- Full install‑time dracut build against buildroot  

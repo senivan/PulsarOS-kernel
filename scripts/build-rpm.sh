@@ -11,4 +11,5 @@ cp  config/base.config ~/rpmbuild/SOURCES
 cp -r kernel.spec ~/rpmbuild/SPECS/
 cd ~/rpmbuild/SPECS
 rpmbuild -ba kernel.spec        
-sudo dnf install -y ~/rpmbuild/RPMS/*/kernel-*.rpm
+dnf reinstall -y ~/rpmbuild/RPMS/*/kernel-*.rpm \
+  || dnf install -y ~/rpmbuild/RPMS/*/kernel-*.rpm
