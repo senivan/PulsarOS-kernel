@@ -26,7 +26,15 @@ cp "$BASE_CONFIG" "$BUILD_DIR/.config"
 cd "$BUILD_DIR"
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
   bash "$SOURCE_DIR/scripts/kconfig/merge_config.sh" -m \
-    "$BUILD_DIR/.config" /root/Kernel/config/base.config             
+    "$BUILD_DIR/.config" \
+    /root/Kernel/config/01-cpu.config \
+    /root/Kernel/config/02-memory.config \
+    /root/Kernel/config/03-timers.config \
+    /root/Kernel/config/04-fs.config \
+    /root/Kernel/config/05-networking.config \
+    /root/Kernel/config/06-io.config \
+    /root/Kernel/config/07-numa.config \
+    /root/Kernel/config/08-storage.config \
 
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
   make -C "$SOURCE_DIR" O="$BUILD_DIR" olddefconfig                  
