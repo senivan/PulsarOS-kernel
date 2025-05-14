@@ -8,3 +8,6 @@ To use this kernel run the next sequence of scripts:
 2. Run `update-spec.sh` to bump the version and update checksums for sources
 3. Run `build-rpm.sh` to build and install RPMs
 4. Run `install-kernel.sh` to regenerate GRUB config and reboot
+
+## Known issues
+1. As for now `build_rpm.sh` does not build a working kernel. Working to fix this.
