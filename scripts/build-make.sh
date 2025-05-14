@@ -40,8 +40,11 @@ cp -v "$BUILD_DIR"/System.map /boot/System.map-6.14.6-pulsaros
 echo "Starting kernel installation..."
 dracut --force --kver 6.14.6-pulsaros \
        --tmpdir /root/dracut-tmp \
-       --hostonly \
        --lzma \
+       --strip \
+       --hostonly \
+       --add " dm lvm " \
+       --kernel-cmdline " rootfstype=ext4 rootwait rd.auto rd.lvm=1 rd.lvm.vg=rl root=/dev/mapper/rl-root ro " \
        /boot/initramfs-6.14.6-pulsaros.img
 
 # kernel-install add 6.14.6-pulsaros /boot/vmlinuz-6.14.6-pulsaros
@@ -61,13 +64,13 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 echo "Updated GRUB with isolcpus=${ISOL_CPUS} and nohz_full=${ISOL_CPUS}; reboot to apply."
 
 
-IRQ_DEC=$(( (1<<0) | (1<<1) ))                                      
-IRQ_HEX=$(printf '%x' "$IRQ_DEC")
-echo "Setting default IRQ affinity mask to 0x${IRQ_HEX} for cores ${OS_CORES_LIST}"
-echo "${IRQ_HEX}" > /proc/irq/default_smp_affinity                  
-for irq_dir in /proc/irq/[0-9]*; do
-  echo "${IRQ_HEX}" > "${irq_dir}/smp_affinity"                    
-done
-echo "IRQ affinity pinned to CPU mask 0x${IRQ_HEX} (cores ${OS_CORES_LIST})"
+# IRQ_DEC=$(( (1<<0) | (1<<1) ))                                      
+# IRQ_HEX=$(printf '%x' "$IRQ_DEC")
+# echo "Setting default IRQ affinity mask to 0x${IRQ_HEX} for cores ${OS_CORES_LIST}"
+# echo "${IRQ_HEX}" > /proc/irq/default_smp_affinity                  
+# for irq_dir in /proc/irq/[0-9]*; do
+#   echo "${IRQ_HEX}" > "${irq_dir}/smp_affinity"                    
+# done
+# echo "IRQ affinity pinned to CPU mask 0x${IRQ_HEX} (cores ${OS_CORES_LIST})"
 
-echo "Build, CPU isolation, and IRQ affinity setup complete. Please reboot."
+# echo "Build, CPU isolation, and IRQ affinity setup complete. Please reboot."
