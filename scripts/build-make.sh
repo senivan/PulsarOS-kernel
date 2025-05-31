@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-dnf -y groupinstall "Development Tools"
+dnf -y group install development-tools
 dnf -y install bc bison flex elfutils-libelf-devel \
                ncurses-devel openssl-devel pesign rpmdevtools \
                dwarves
@@ -11,30 +11,30 @@ ISOL_CPUS="2-$((TOTAL_CPUS - 1))"
 OS_CORES_LIST="0-1"                                                  
 echo "DPDK will use cores: ${ISOL_CPUS}; OS/IRQ cores: ${OS_CORES_LIST}"
 
-SOURCE_DIR="/root/Kernel/linux-6.14.6"
-BUILD_DIR="/root/build/kernel"
-BASE_CONFIG="/boot/config-5.14.0-503.40.1.el9_5.x86_64"
+SOURCE_DIR="/home/user/Kernel/linux-6.15"
+BUILD_DIR="/home/user/build/kernel"
+BASE_CONFIG="/boot/config-6.14.8-300.fc42.x86_64"
 
 rm -rf "$SOURCE_DIR"
-tar xf /root/Kernel/linux-6.*.tar.xz -C /root/Kernel/
+tar xf /home/user/Kernel/linux-6.*.tar.xz -C /home/user/Kernel/
 cd "$SOURCE_DIR"
 sed -i 's/^EXTRAVERSION.*/EXTRAVERSION = -pulsaros/' Makefile        
 make mrproper                                                       
-
+# TODO: Place some variables for path
 mkdir -p "$BUILD_DIR"
 cp "$BASE_CONFIG" "$BUILD_DIR/.config"
 cd "$BUILD_DIR"
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
   bash "$SOURCE_DIR/scripts/kconfig/merge_config.sh" -m \
     "$BUILD_DIR/.config" \
-    /root/Kernel/config/01-cpu.config \
-    /root/Kernel/config/02-memory.config \
-    /root/Kernel/config/03-timers.config \
-    /root/Kernel/config/04-fs.config \
-    /root/Kernel/config/05-networking.config \
-    /root/Kernel/config/06-io.config \
-    /root/Kernel/config/07-numa.config \
-    /root/Kernel/config/08-storage.config \
+    /home/user/Kernel/config/01-cpu.config \
+    /home/user/Kernel/config/02-memory.config \
+    /home/user/Kernel/config/03-timers.config \
+    /home/user/Kernel/config/04-fs.config \
+    /home/user/Kernel/config/05-networking.config \
+    /home/user/Kernel/config/06-io.config \
+    /home/user/Kernel/config/07-numa.config \
+    /home/user/Kernel/config/08-storage.config \
 
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
   make -C "$SOURCE_DIR" O="$BUILD_DIR" olddefconfig                  
@@ -51,7 +51,7 @@ dracut --force --kver 6.14.6-pulsaros \
        --tmpdir /root/dracut-tmp \
        --lzma \
        --strip \
-       --aggresive-strip \
+       --aggressive-strip \
        --hostonly \
        --add " dm lvm " \
        --kernel-cmdline " rootfstype=ext4 rootwait audit=1 rd.auto rd.lvm=1 rd.lvm.vg=rl root=/dev/mapper/rl-root ro " \
@@ -72,7 +72,7 @@ fi
 grub2-mkconfig -o /boot/grub2/grub.cfg
 echo "Updated GRUB with isolcpus=${ISOL_CPUS} and nohz_full=${ISOL_CPUS}; reboot to apply."
 
-cp -v "${BUILD_DIR}"/.config /root/kernel-config-6.14.6-pulsaros
+cp -v "${BUILD_DIR}"/.config /home/user/kernel-config-6.14.6-pulsaros
 echo "Kernel config saved to /root/kernel-config-6.14.6-pulsaros"
 
 IRQ_DEC=0

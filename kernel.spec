@@ -1,11 +1,13 @@
 Name:           kernel
-Version:        6.14.6
+Version:        6.15
 Release:        1.pulsaros%{?dist}
 Summary:        PulsarOS custom Linux kernel
 
 License:        GPLv2
 URL:            https://www.kernel.org/
 Source0:        kernel-%{version}.tar.xz
+# SHA256: 
+# SHA256: 
 Source1:        config/base.config
 
 # Definitions
@@ -86,3 +88,7 @@ ROOT_UUID=$(findmnt -n -o UUID /)
 %changelog
 * Tue May 13 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.14.6-1
 - Full install‑time dracut build against buildroot  
+* Sat May 31 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1
+- Updated to Linux 
+* Sat May 31 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.15-1
+- Updated to Linux 6.15
