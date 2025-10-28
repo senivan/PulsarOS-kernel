@@ -9,14 +9,14 @@ apt install -y build-essential bc bison flex libelf-dev \
                    libncurses-dev libssl-dev pesign  \
                    dwarves dracut make cmake gcc g++ 
 
-TOTAL_CPUS=4                                          
+TOTAL_CPUS=10                                          
 ISOL_CPUS="2-$((TOTAL_CPUS - 1))"                                    
 OS_CORES_LIST="0-1"                                                  
 echo "DPDK will use cores: ${ISOL_CPUS}; OS/IRQ cores: ${OS_CORES_LIST}"
 
-SOURCE_DIR="/root/Kernel/linux-6.16"
+SOURCE_DIR="/root/Kernel/linux-6.16.8"
 BUILD_DIR="/root/build/kernel"
-BASE_CONFIG="/boot/config-6.1.0-37-amd64"
+BASE_CONFIG="/root/kernel-config-6.16.0-pulsaros"
 
 rm -rf "$SOURCE_DIR"
 tar xf /root/Kernel/linux-6.*.tar.xz -C /root/Kernel/
@@ -43,14 +43,14 @@ KCONFIG_CONFIG="$BUILD_DIR/.config" \
   make -C "$SOURCE_DIR" O="$BUILD_DIR" olddefconfig                  
 sed -ri '/CONFIG_SYSTEM_TRUSTED_KEYS/s/=.+/=""/g' "$BUILD_DIR/.config"
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  make -C "$SOURCE_DIR" O="$BUILD_DIR" -j"$(nproc)"
+  make -C "$SOURCE_DIR" O="$BUILD_DIR" -j 8
 KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  make -C "$SOURCE_DIR" O="$BUILD_DIR" modules_install
+  make -C "$SOURCE_DIR" O="$BUILD_DIR" modules_install -j 8
 
-cp -v "$BUILD_DIR"/arch/x86/boot/bzImage /boot/vmlinuz-6.16.0-pulsaros
-cp -v "$BUILD_DIR"/System.map /boot/System.map-6.16.0-pulsaros
+cp -v "$BUILD_DIR"/arch/x86/boot/bzImage /boot/vmlinuz-6.16.8-pulsaros
+cp -v "$BUILD_DIR"/System.map /boot/System.map-6.16.8-pulsaros
 echo "Starting kernel installation..."
-dracut --force --kver 6.16.0-pulsaros \
+dracut --force --kver 6.16.8-pulsaros \
        --tmpdir /root/dracut-tmp \
        --lzma \
        --strip \
@@ -58,7 +58,7 @@ dracut --force --kver 6.16.0-pulsaros \
        --hostonly \
        --add " dm lvm " \
        --kernel-cmdline " rootfstype=ext4 rootwait audit=1 root=/dev/sda1 ro " \
-       /boot/initramfs-6.16.0-pulsaros.img
+       /boot/initramfs-6.16.8-pulsaros.img
 
 GRUB_CFG="/etc/default/grub"
 cp "${GRUB_CFG}" "${GRUB_CFG}.dpdkbak"
@@ -75,8 +75,8 @@ fi
 grub-mkconfig -o /boot/grub/grub.cfg
 echo "Updated GRUB with isolcpus=${ISOL_CPUS} and nohz_full=${ISOL_CPUS}; reboot to apply."
 
-cp -v "${BUILD_DIR}"/.config /root/kernel-config-6.16.0-pulsaros
-echo "Kernel config saved to /root/kernel-config-6.16.0-pulsaros"
+cp -v "${BUILD_DIR}"/.config /root/kernel-config-6.16.8-pulsaros
+echo "Kernel config saved to /root/kernel-config-6.16.8-pulsaros"
 
 IRQ_DEC=0
 IFS=',' read -ra PARTS <<< "$OS_CORES_LIST"
