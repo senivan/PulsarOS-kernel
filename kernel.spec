@@ -27,6 +27,18 @@ Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
 # Standard out-of-tree build
 mkdir -p %{_builddir}/build
 cp %{local_defconfig} %{_builddir}/build/.config
+# Merge per-subsystem overlay configs (DPDK/RT optimizations)
+KCONFIG_CONFIG=%{_builddir}/build/.config \
+  bash %{builddir}/scripts/kconfig/merge_config.sh -m \
+    %{_builddir}/build/.config \
+    %{_sourcedir}/config/01-cpu.config \
+    %{_sourcedir}/config/02-memory.config \
+    %{_sourcedir}/config/03-timers.config \
+    %{_sourcedir}/config/04-fs.config \
+    %{_sourcedir}/config/05-networking.config \
+    %{_sourcedir}/config/06-io.config \
+    %{_sourcedir}/config/07-numa.config \
+    %{_sourcedir}/config/08-storage.config
 make -C %{builddir} O=%{_builddir}/build olddefconfig
 make -C %{builddir} O=%{_builddir}/build -j$(nproc) all
 
@@ -72,6 +84,7 @@ dracut \
   --no-early-microcode \
   --no-hostonly-cmdline \
   %{buildroot}/boot/initramfs-%{krel}.img
+
 %post
 ROOT_UUID=$(findmnt -n -o UUID /)
 /sbin/grubby --add-kernel=/boot/vmlinuz-%{krel} \
@@ -84,7 +97,7 @@ ROOT_UUID=$(findmnt -n -o UUID /)
 /boot/initramfs-%{krel}.img
 /lib/modules/%{krel}
 /etc/dracut.conf.d/90-minimal.conf
-%exclude /root/rpmbuild/BUILD/linux-6.14.6
+%exclude %{_builddir}/linux-%{version}
 
 %changelog
 * Tue May 13 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.14.6-1
