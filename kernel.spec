@@ -28,9 +28,7 @@ Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
 mkdir -p %{_builddir}/build
 cp %{local_defconfig} %{_builddir}/build/.config
 # Merge per-subsystem overlay configs (DPDK/RT optimizations)
-KCONFIG_CONFIG=%{_builddir}/build/.config \
-  bash %{builddir}/scripts/kconfig/merge_config.sh -m \
-    %{_builddir}/build/.config \
+for overlay in \
     %{_sourcedir}/config/01-cpu.config \
     %{_sourcedir}/config/02-memory.config \
     %{_sourcedir}/config/03-timers.config \
@@ -38,7 +36,9 @@ KCONFIG_CONFIG=%{_builddir}/build/.config \
     %{_sourcedir}/config/05-networking.config \
     %{_sourcedir}/config/06-io.config \
     %{_sourcedir}/config/07-numa.config \
-    %{_sourcedir}/config/08-storage.config
+    %{_sourcedir}/config/08-storage.config; do
+  cat "$overlay" >> %{_builddir}/build/.config
+done
 make -C %{builddir} O=%{_builddir}/build olddefconfig
 make -C %{builddir} O=%{_builddir}/build -j$(nproc) all
 
@@ -100,11 +100,11 @@ ROOT_UUID=$(findmnt -n -o UUID /)
 %exclude %{_builddir}/linux-%{version}
 
 %changelog
-* Tue May 13 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.14.6-1
-- Full install‑time dracut build against buildroot  
-* Sat May 31 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1
+* Sun Aug 03 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1
 - Updated to Linux 
 * Sat May 31 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.15-1
 - Updated to Linux 6.15
-* Sun Aug 03 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1
+* Sat May 31 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1
 - Updated to Linux 
+* Tue May 13 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.14.6-1
+- Full install‑time dracut build against buildroot
