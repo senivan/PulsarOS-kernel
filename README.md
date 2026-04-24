@@ -9,4 +9,4 @@ To use this kernel run the next sequence of scripts:
 2. Run `update-spec.sh` to bump the version and update checksums for sources
 3. Run `build-rpm.sh` to build and install RPMs or run `build-make.sh` to build in more conventional way. Build scripts are made for RHEL systems.
 ## Known issues
-1. As for now `build_rpm.sh` does not build a working kernel. Working to fix this. You can use `build-make.sh` in the meantime.
+1. `scripts/build-rpm.sh` needs root privileges (or passwordless sudo) when required build dependencies are missing.
