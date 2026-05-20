@@ -1,0 +1,59 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      kver:
+        description: Linux kernel version to build
+        required: true
+        default: 7.0.9
+        type: string
+
+jobs:
+  build:
+    name: Build kernel RPMs
+    runs-on: [self-hosted, linux, x64]
+    env:
+      KVER: ${{ inputs.kver }}
+      INSTALL_RPMS: "0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          if command -v dnf >/dev/null 2>&1; then
+            sudo dnf -y install \
+              rpm-build gcc make bc bison flex dracut \
+              elfutils-libelf-devel ncurses-devel openssl-devel dwarves
+          elif command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              rpm build-essential bc bison flex dracut \
+              libelf-dev libncurses-dev libssl-dev dwarves
+          else
+            echo "Unsupported package manager; install build dependencies on the runner."
+            exit 1
+          fi
+
+      - name: Fetch kernel source
+        run: scripts/fetch-upstream.sh "${KVER}"
+
+      - name: Update spec
+        run: scripts/update-spec.sh "${KVER}"
+
+      - name: Build RPMs
+        run: scripts/build-rpm.sh
+
+      - name: Collect RPM artifacts
+        run: |
+          mkdir -p artifacts
+          cp ~/rpmbuild/RPMS/*/*.rpm artifacts/
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ env.KVER }}-rpms
+          path: artifacts/*.rpm
+          if-no-files-found: error

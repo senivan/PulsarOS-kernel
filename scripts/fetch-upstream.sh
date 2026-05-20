@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# KVER=$(curl -s https://www.kernel.org/releases.json | jq -r '.latest_stable.version')
-KVER=6.16
+
+KVER="${1:-${KVER:-7.0.9}}"
+KMAJOR="${KVER%%.*}"
+
 curl -L \
-     "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KVER}.tar.xz" \
-     -o "linux-${KVER}.tar.xz"
+     "https://cdn.kernel.org/pub/linux/kernel/v${KMAJOR}.x/linux-${KVER}.tar.xz" \
+     -o "kernel-${KVER}.tar.xz"
 echo "$KVER"

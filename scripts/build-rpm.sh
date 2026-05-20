@@ -91,6 +91,12 @@ if [[ ${#rpms[@]} -eq 0 ]]; then
   exit 1
 fi
 
+if [[ "${INSTALL_RPMS:-1}" == "0" ]]; then
+  echo "INFO: built RPMs successfully; skipping install because INSTALL_RPMS=0."
+  printf 'Built RPMs:\n%s\n' "${rpms[@]}"
+  exit 0
+fi
+
 if command -v dnf >/dev/null 2>&1; then
   if [[ ${EUID} -eq 0 ]]; then
     dnf reinstall -y "${rpms[@]}" || dnf install -y "${rpms[@]}"
