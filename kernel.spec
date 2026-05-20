@@ -71,6 +71,9 @@ install -d %{buildroot}/boot
 install -m 644 \
   %{_builddir}/build/arch/x86/boot/bzImage \
   %{buildroot}/boot/vmlinuz-%{krel}
+install -m 644 \
+  %{_builddir}/build/.config \
+  %{buildroot}/boot/config-%{krel}
 
 # 5) Ensure dracut has a tempdir in the sysroot
 mkdir -p %{buildroot}/var/tmp
@@ -103,6 +106,7 @@ ROOT_UUID=$(findmnt -n -o UUID /)
 
 %files
 /boot/vmlinuz-%{krel}
+/boot/config-%{krel}
 /boot/initramfs-%{krel}.img
 /lib/modules/%{krel}
 /etc/dracut.conf.d/90-minimal.conf
