@@ -36,7 +36,8 @@ for overlay in \
     %{_sourcedir}/config/05-networking.config \
     %{_sourcedir}/config/06-io.config \
     %{_sourcedir}/config/07-numa.config \
-    %{_sourcedir}/config/08-storage.config; do
+    %{_sourcedir}/config/08-storage.config \
+    %{_sourcedir}/config/09-userspace.config; do
   cat "$overlay" >> %{_builddir}/build/.config
 done
 make O=%{_builddir}/build olddefconfig
