@@ -88,7 +88,7 @@ DRACUT_KMODDIR_OVERRIDE=1 dracut \
   --kmoddir "${dracut_kmoddir}" \
   --tmpdir /var/tmp \
   --force --kver %{krel} \
-  --modules "base kernel-modules rootfs-block fs-lib" \
+  --modules "base kernel-modules rootfs-block fs-lib lvm" \
   --no-hostonly \
   --no-compress \
   --no-early-microcode \
