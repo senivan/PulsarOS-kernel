@@ -65,28 +65,28 @@ if ! grep -q '^Version:[[:space:]]\+[0-9]' kernel.spec; then
   exit 1
 fi
 
-# rpmdev-setuptree        # does now work in Debian
-mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}         
-cp kernel-*.tar.xz ~/rpmbuild/SOURCES/
-mkdir -p ~/rpmbuild/SOURCES/config
-cp -r patches/* ~/rpmbuild/SOURCES/
-cp  config/base.config ~/rpmbuild/SOURCES/config
-cp  config/base.config ~/rpmbuild/SOURCES
-cp  config/01-cpu.config ~/rpmbuild/SOURCES/config
-cp  config/02-memory.config ~/rpmbuild/SOURCES/config
-cp  config/03-timers.config ~/rpmbuild/SOURCES/config
-cp  config/04-fs.config ~/rpmbuild/SOURCES/config
-cp  config/05-networking.config ~/rpmbuild/SOURCES/config
-cp  config/06-io.config ~/rpmbuild/SOURCES/config
-cp  config/07-numa.config ~/rpmbuild/SOURCES/config
-cp  config/08-storage.config ~/rpmbuild/SOURCES/config
-cp  config/09-userspace.config ~/rpmbuild/SOURCES/config
-cp -r kernel.spec ~/rpmbuild/SPECS/
-cd ~/rpmbuild/SPECS
-rpmbuild -ba kernel.spec
+RPMBUILD_TOPDIR="${RPMBUILD_TOPDIR:-$HOME/rpmbuild}"
+mkdir -p "${RPMBUILD_TOPDIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+cp kernel-*.tar.xz "${RPMBUILD_TOPDIR}/SOURCES/"
+mkdir -p "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp -r patches/* "${RPMBUILD_TOPDIR}/SOURCES/"
+cp config/base.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/base.config "${RPMBUILD_TOPDIR}/SOURCES"
+cp config/01-cpu.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/02-memory.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/03-timers.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/04-fs.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/05-networking.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/06-io.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/07-numa.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/08-storage.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp config/09-userspace.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp -r kernel.spec "${RPMBUILD_TOPDIR}/SPECS/"
+cd "${RPMBUILD_TOPDIR}/SPECS"
+rpmbuild --define "_topdir ${RPMBUILD_TOPDIR}" -ba kernel.spec
 
 shopt -s nullglob
-rpms=(~/rpmbuild/RPMS/*/kernel-*.rpm)
+rpms=("${RPMBUILD_TOPDIR}"/RPMS/*/kernel-*.rpm)
 if [[ ${#rpms[@]} -eq 0 ]]; then
   echo "ERROR: rpmbuild completed but no kernel RPMs were produced."
   exit 1
