@@ -80,6 +80,7 @@ cp  config/05-networking.config ~/rpmbuild/SOURCES/config
 cp  config/06-io.config ~/rpmbuild/SOURCES/config
 cp  config/07-numa.config ~/rpmbuild/SOURCES/config
 cp  config/08-storage.config ~/rpmbuild/SOURCES/config
+cp  config/09-userspace.config ~/rpmbuild/SOURCES/config
 cp -r kernel.spec ~/rpmbuild/SPECS/
 cd ~/rpmbuild/SPECS
 rpmbuild -ba kernel.spec
