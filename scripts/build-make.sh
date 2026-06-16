@@ -1,122 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# dnf -y group install development-tools
-# dnf -y install bc bison flex elfutils-libelf-devel \
-#                ncurses-devel openssl-devel pesign rpmdevtools \
-#                dwarves
-apt install -y build-essential bc bison flex libelf-dev \
-                   libncurses-dev libssl-dev pesign  \
-                   dwarves dracut make cmake gcc g++ 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/dpdk-common.sh
+source "${SCRIPT_DIR}/dpdk-common.sh"
 
-TOTAL_CPUS=10                                          
-ISOL_CPUS="2-$((TOTAL_CPUS - 1))"                                    
-OS_CORES_LIST="0-1"                                                  
-echo "DPDK will use cores: ${ISOL_CPUS}; OS/IRQ cores: ${OS_CORES_LIST}"
+ROOT="$(repo_root)"
+KVER="${KVER:-$(read_kernel_version "${ROOT}")}"
+SOURCE_ARCHIVE="${SOURCE_ARCHIVE:-${ROOT}/kernel-${KVER}.tar.xz}"
+WORK_DIR="${WORK_DIR:-${ROOT}/.build/make}"
+SOURCE_DIR="${SOURCE_DIR:-${WORK_DIR}/linux-${KVER}}"
+BUILD_DIR="${BUILD_DIR:-${WORK_DIR}/build-${KVER}}"
+JOBS="${JOBS:-$(nproc)}"
 
-SOURCE_DIR="/root/Kernel/linux-6.16.8"
-BUILD_DIR="/root/build/kernel"
-BASE_CONFIG="/root/kernel-config-6.16.0-pulsaros"
+[[ -r "${SOURCE_ARCHIVE}" ]] || die "missing ${SOURCE_ARCHIVE}; run scripts/fetch-upstream.sh ${KVER}"
 
-rm -rf "$SOURCE_DIR"
-tar xf /root/Kernel/linux-6.*.tar.xz -C /root/Kernel/
-cd "$SOURCE_DIR"
-sed -i 's/^EXTRAVERSION.*/EXTRAVERSION = -pulsaros/' Makefile        
-make mrproper                                                       
-# TODO: Place some variables for path
-mkdir -p "$BUILD_DIR"
-cp "$BASE_CONFIG" "$BUILD_DIR/.config"
-cd "$BUILD_DIR"
-KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  bash "$SOURCE_DIR/scripts/kconfig/merge_config.sh" -m \
-    "$BUILD_DIR/.config" \
-    /root/Kernel/config/01-cpu.config \
-    /root/Kernel/config/02-memory.config \
-    /root/Kernel/config/03-timers.config \
-    /root/Kernel/config/04-fs.config \
-    /root/Kernel/config/05-networking.config \
-    /root/Kernel/config/06-io.config \
-    /root/Kernel/config/07-numa.config \
-    /root/Kernel/config/08-storage.config \
+rm -rf "${SOURCE_DIR}"
+mkdir -p "${WORK_DIR}" "${BUILD_DIR}"
+tar xf "${SOURCE_ARCHIVE}" -C "${WORK_DIR}"
 
-KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  make -C "$SOURCE_DIR" O="$BUILD_DIR" olddefconfig                  
-sed -ri '/CONFIG_SYSTEM_TRUSTED_KEYS/s/=.+/=""/g' "$BUILD_DIR/.config"
-KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  make -C "$SOURCE_DIR" O="$BUILD_DIR" -j 8
-KCONFIG_CONFIG="$BUILD_DIR/.config" \
-  make -C "$SOURCE_DIR" O="$BUILD_DIR" modules_install -j 8
+sed -i 's/^EXTRAVERSION.*/EXTRAVERSION = -pulsaros/' "${SOURCE_DIR}/Makefile"
+make -C "${SOURCE_DIR}" O="${BUILD_DIR}" mrproper
+cp "${ROOT}/config/base.config" "${BUILD_DIR}/.config"
 
-cp -v "$BUILD_DIR"/arch/x86/boot/bzImage /boot/vmlinuz-6.16.8-pulsaros
-cp -v "$BUILD_DIR"/System.map /boot/System.map-6.16.8-pulsaros
-echo "Starting kernel installation..."
-dracut --force --kver 6.16.8-pulsaros \
-       --tmpdir /root/dracut-tmp \
-       --lzma \
-       --strip \
-       --aggressive-strip \
-       --hostonly \
-       --add " dm lvm " \
-       --kernel-cmdline " rootfstype=ext4 rootwait audit=1 root=/dev/sda1 ro " \
-       /boot/initramfs-6.16.8-pulsaros.img
+KCONFIG_CONFIG="${BUILD_DIR}/.config" \
+  bash "${SOURCE_DIR}/scripts/kconfig/merge_config.sh" -m \
+    "${BUILD_DIR}/.config" \
+    "${ROOT}/config/01-cpu.config" \
+    "${ROOT}/config/02-memory.config" \
+    "${ROOT}/config/03-timers.config" \
+    "${ROOT}/config/04-fs.config" \
+    "${ROOT}/config/05-networking.config" \
+    "${ROOT}/config/06-io.config" \
+    "${ROOT}/config/07-numa.config" \
+    "${ROOT}/config/08-storage.config" \
+    "${ROOT}/config/09-userspace.config"
 
-GRUB_CFG="/etc/default/grub"
-cp "${GRUB_CFG}" "${GRUB_CFG}.dpdkbak"
-if grep -q "isolcpus=" "${GRUB_CFG}"; then
-  sed -ri "s/isolcpus=[^ ]*/isolcpus=${ISOL_CPUS}/" "${GRUB_CFG}"
-else
-  sed -ri "s/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"isolcpus=${ISOL_CPUS} /" "${GRUB_CFG}"
-fi
-if grep -q "nohz_full=" "${GRUB_CFG}"; then
-  sed -ri "s/nohz_full=[^ ]*/nohz_full=${ISOL_CPUS}/" "${GRUB_CFG}"
-else
-  sed -ri "s/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"nohz_full=${ISOL_CPUS} /" "${GRUB_CFG}"
-fi
-grub-mkconfig -o /boot/grub/grub.cfg
-echo "Updated GRUB with isolcpus=${ISOL_CPUS} and nohz_full=${ISOL_CPUS}; reboot to apply."
+KCONFIG_CONFIG="${BUILD_DIR}/.config" make -C "${SOURCE_DIR}" O="${BUILD_DIR}" olddefconfig
+sed -ri '/CONFIG_SYSTEM_TRUSTED_KEYS/s/=.+/=""/g' "${BUILD_DIR}/.config"
+KCONFIG_CONFIG="${BUILD_DIR}/.config" make -C "${SOURCE_DIR}" O="${BUILD_DIR}" -j "${JOBS}"
 
-cp -v "${BUILD_DIR}"/.config /root/kernel-config-6.16.8-pulsaros
-echo "Kernel config saved to /root/kernel-config-6.16.8-pulsaros"
-
-IRQ_DEC=0
-IFS=',' read -ra PARTS <<< "$OS_CORES_LIST"
-for part in "${PARTS[@]}"; do
-  if [[ $part =~ ^([0-9]+)-([0-9]+)$ ]]; then
-    start=${BASH_REMATCH[1]}; end=${BASH_REMATCH[2]}
-    for ((cpu=start; cpu<=end; cpu++)); do
-      IRQ_DEC=$(( IRQ_DEC | (1 << cpu) ))
-    done
-  else
-    IRQ_DEC=$(( IRQ_DEC | (1 << part) ))
-  fi
-done
-
-# 2) Determine how many hex digits we need (4 bits per digit)
-MAX_CPU=$(( ${PARTS[-1]/*-/} + 1 ))          # approximate highest CPU +1
-HEX_DIGITS=$(( (MAX_CPU + 3) / 4 ))         # ceil division
-IRQ_HEX=$(printf "%0${HEX_DIGITS}x" "$IRQ_DEC")
-
-echo "Setting default IRQ affinity mask to 0x${IRQ_HEX} for cores ${OS_CORES_LIST}"
-
-# 3) Write to default affinity
-if [ -w /proc/irq/default_smp_affinity ]; then
-  echo "${IRQ_HEX}" > /proc/irq/default_smp_affinity
-else
-  echo "Warning: cannot write default_smp_affinity"
-fi
-
-# 4) Iterate each numbered IRQ
-for irq_dir in /proc/irq/[0-9]*; do
-  # pick the “list” interface if present
-  for f in smp_affinity_list smp_affinity; do
-    AFF_FILE="$irq_dir/$f"
-    if [ -w "$AFF_FILE" ]; then
-      echo "${IRQ_HEX}" > "$AFF_FILE" || \
-        echo "Failed to write $AFF_FILE"
-      break
-    fi
-  done
-done
-
-echo "IRQ affinity pinned to CPU mask 0x${IRQ_HEX} (cores ${OS_CORES_LIST})"
-echo "Build, CPU isolation, and IRQ affinity setup complete. Please reboot."
+echo "Local make build complete:"
+echo "  Kernel image: ${BUILD_DIR}/arch/x86/boot/bzImage"
+echo "  Config:       ${BUILD_DIR}/.config"
+echo
+echo "Runtime setup is separate from compilation. Use:"
+echo "  scripts/install-dpdk-profile.sh profiles/dpdk-bench.env"
+echo "  scripts/set-irqs.sh profiles/dpdk-bench.env"
