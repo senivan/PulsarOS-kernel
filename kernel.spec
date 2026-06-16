@@ -1,24 +1,23 @@
 Name:           kernel
-Version:        6.16
+Version:        7.0.9
 Release:        1.pulsaros%{?dist}
 Summary:        PulsarOS custom Linux kernel
 
 License:        GPLv2
 URL:            https://www.kernel.org/
 Source0:        kernel-%{version}.tar.xz
-# SHA256: 1a4be2fe6b5246aa4ac8987a8a4af34c42a8dd7d08b46ab48516bcc1befbcd83
-# SHA256: 
-# SHA256: 
-# SHA256: 
 Source1:        config/base.config
 
 # Definitions
+%{!?_unitdir:%global _unitdir /usr/lib/systemd/system}
 %define debug_package %{nil}
 %define local_defconfig %{_sourcedir}/config/base.config
 %define krel           %{version}-pulsaros
+%define helperdir      %{_libexecdir}/pulsaros-kernel
 
 %description
 Custom bleeding-edge kernel for PulsarOS with DPDK/eBPF optimizations.
+Runtime DPDK behavior is selected through explicit host profiles after install.
 
 %prep
 %autosetup -n linux-%{version} -p1
@@ -76,10 +75,26 @@ install -m 644 \
   %{_builddir}/build/.config \
   %{buildroot}/boot/config-%{krel}
 
-# 5) Ensure dracut has a tempdir in the sysroot
+# 5) Install DPDK runtime profiles and helper scripts
+install -d %{buildroot}%{_datadir}/pulsaros-kernel/profiles
+install -m 644 %{_sourcedir}/profiles/*.env %{buildroot}%{_datadir}/pulsaros-kernel/profiles/
+install -d %{buildroot}%{helperdir}
+install -m 755 %{_sourcedir}/scripts/dpdk-common.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/render-cmdline.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/install-dpdk-profile.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/dpdk-status.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/bind-vfio.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/unbind-vfio.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/set-irqs.sh %{buildroot}%{helperdir}/
+install -m 755 %{_sourcedir}/scripts/set-performance-governor.sh %{buildroot}%{helperdir}/
+install -d %{buildroot}%{_unitdir}
+install -m 644 %{_sourcedir}/systemd/*.service %{buildroot}%{_unitdir}/
+install -d %{buildroot}%{_sysconfdir}/pulsaros-kernel
+
+# 6) Ensure dracut has a tempdir in the sysroot
 mkdir -p %{buildroot}/var/tmp
 
-# 6) Build the initramfs using host dracut, against buildroot
+# 7) Build the initramfs using host dracut, against buildroot
 depmod -b %{buildroot} %{krel}
 dracut_kmoddir="/var/tmp/pulsaros-kmods-%{krel}"
 dracut_img="/var/tmp/initramfs-%{krel}.img"
@@ -100,10 +115,19 @@ rm -f "${dracut_img}" "${dracut_kmoddir}"
 
 %post
 ROOT_UUID=$(findmnt -n -o UUID /)
-/sbin/grubby --add-kernel=/boot/vmlinuz-%{krel} \
-             --initrd=/boot/initramfs-%{krel}.img \
-             --title="PulsarOS Kernel %{version}" \
-             --args="hugepagesz=2M default_hugepagesz=2M root=UUID=${ROOT_UUID} rootfstype=ext4 rootwait"
+if command -v grubby >/dev/null 2>&1; then
+  /sbin/grubby --add-kernel=/boot/vmlinuz-%{krel} \
+               --initrd=/boot/initramfs-%{krel}.img \
+               --title="PulsarOS Kernel %{version}" \
+               --args="root=UUID=${ROOT_UUID} rootfstype=ext4 rootwait"
+else
+  echo "WARNING: grubby not found; add /boot/vmlinuz-%{krel} to the bootloader manually."
+fi
+cat <<'EOF'
+PulsarOS kernel installed.
+Apply an explicit DPDK runtime profile after install, for example:
+  /usr/libexec/pulsaros-kernel/install-dpdk-profile.sh /usr/share/pulsaros-kernel/profiles/dpdk-bench.env
+EOF
 
 %files
 /boot/vmlinuz-%{krel}
@@ -111,8 +135,15 @@ ROOT_UUID=$(findmnt -n -o UUID /)
 /boot/initramfs-%{krel}.img
 /lib/modules/%{krel}
 /etc/dracut.conf.d/90-minimal.conf
+%dir %{_sysconfdir}/pulsaros-kernel
+%{_datadir}/pulsaros-kernel/profiles/*.env
+%{helperdir}/*.sh
+%{_unitdir}/pulsaros-dpdk-host.service
+%{_unitdir}/pulsaros-vfio-bind@.service
 
 %changelog
+* Tue Jun 16 2026 PulsarOS Kernel Team <kernels@pulsaros.org> - 7.0.9-1
+- Add explicit DPDK runtime profiles and host helper tooling
 * Fri Apr 24 2026 PulsarOS Kernel Team <kernels@pulsaros.org> - 6.16-1
 - Updated to Linux 6.16
 * Sun Aug 03 2025 PulsarOS Kernel Team <kernels@pulsaros.org> - -1

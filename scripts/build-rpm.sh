@@ -59,33 +59,40 @@ ensure_build_deps() {
 
 ensure_build_deps
 
-# Preflight: ensure kernel.spec has a version set
-if ! grep -q '^Version:[[:space:]]\+[0-9]' kernel.spec; then
-  echo "ERROR: kernel.spec has no version set. Run update-spec.sh <kver> first."
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/dpdk-common.sh
+source "${SCRIPT_DIR}/dpdk-common.sh"
+ROOT="$(repo_root)"
+KVER="${KVER:-$(read_kernel_version "${ROOT}")}"
+
+if ! grep -q "^Version:[[:space:]]*${KVER}$" "${ROOT}/kernel.spec"; then
+  echo "ERROR: kernel.spec version does not match VERSION/KVER (${KVER})."
+  echo "Run scripts/update-spec.sh ${KVER} first."
   exit 1
 fi
+[[ -r "${ROOT}/kernel-${KVER}.tar.xz" ]] || {
+  echo "ERROR: missing ${ROOT}/kernel-${KVER}.tar.xz. Run scripts/fetch-upstream.sh ${KVER} first."
+  exit 1
+}
 
 RPMBUILD_TOPDIR="${RPMBUILD_TOPDIR:-$HOME/rpmbuild}"
 mkdir -p "${RPMBUILD_TOPDIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-cp kernel-*.tar.xz "${RPMBUILD_TOPDIR}/SOURCES/"
+cp "${ROOT}/kernel-${KVER}.tar.xz" "${RPMBUILD_TOPDIR}/SOURCES/"
 mkdir -p "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp -r patches/* "${RPMBUILD_TOPDIR}/SOURCES/"
-cp config/base.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/base.config "${RPMBUILD_TOPDIR}/SOURCES"
-cp config/01-cpu.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/02-memory.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/03-timers.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/04-fs.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/05-networking.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/06-io.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/07-numa.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/08-storage.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp config/09-userspace.config "${RPMBUILD_TOPDIR}/SOURCES/config"
-cp -r kernel.spec "${RPMBUILD_TOPDIR}/SPECS/"
+mkdir -p "${RPMBUILD_TOPDIR}/SOURCES/scripts" "${RPMBUILD_TOPDIR}/SOURCES/profiles" "${RPMBUILD_TOPDIR}/SOURCES/systemd"
+shopt -s nullglob
+patch_files=("${ROOT}"/patches/*)
+if [[ ${#patch_files[@]} -gt 0 ]]; then
+  cp -r "${patch_files[@]}" "${RPMBUILD_TOPDIR}/SOURCES/"
+fi
+cp "${ROOT}"/config/*.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp "${ROOT}"/scripts/*.sh "${RPMBUILD_TOPDIR}/SOURCES/scripts"
+cp "${ROOT}"/profiles/*.env "${RPMBUILD_TOPDIR}/SOURCES/profiles"
+cp "${ROOT}"/systemd/*.service "${RPMBUILD_TOPDIR}/SOURCES/systemd"
+cp -r "${ROOT}/kernel.spec" "${RPMBUILD_TOPDIR}/SPECS/"
 cd "${RPMBUILD_TOPDIR}/SPECS"
 rpmbuild --define "_topdir ${RPMBUILD_TOPDIR}" -ba kernel.spec
 
-shopt -s nullglob
 rpms=("${RPMBUILD_TOPDIR}"/RPMS/*/kernel-*.rpm)
 if [[ ${#rpms[@]} -eq 0 ]]; then
   echo "ERROR: rpmbuild completed but no kernel RPMs were produced."
