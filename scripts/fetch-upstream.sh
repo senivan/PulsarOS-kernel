@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KVER="${1:-${KVER:-7.0.9}}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/dpdk-common.sh
+source "${SCRIPT_DIR}/dpdk-common.sh"
+
+KVER="${1:-${KVER:-$(read_kernel_version "$(repo_root)")}}"
 KMAJOR="${KVER%%.*}"
 
 curl -L \
