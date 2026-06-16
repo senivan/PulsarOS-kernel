@@ -1,0 +1,12 @@
+[Unit]
+Description=PulsarOS DPDK host runtime setup
+After=multi-user.target
+ConditionPathExists=/etc/pulsaros-kernel/dpdk-profile.env
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/pulsaros-kernel/set-irqs.sh /etc/pulsaros-kernel/dpdk-profile.env
+ExecStart=/usr/libexec/pulsaros-kernel/set-performance-governor.sh
+
+[Install]
+WantedBy=multi-user.target

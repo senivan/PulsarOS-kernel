@@ -1,0 +1,12 @@
+[Unit]
+Description=Bind PCI device %i to vfio-pci
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/pulsaros-kernel/bind-vfio.sh %i
+ExecStop=/usr/libexec/pulsaros-kernel/unbind-vfio.sh %i
+
+[Install]
+WantedBy=multi-user.target
