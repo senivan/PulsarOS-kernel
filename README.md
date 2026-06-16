@@ -1,12 +1,40 @@
-# Pulsar OS kernel repo
+# PulsarOS Kernel
 
-This repo contains kernel.spec, configs and patches optimized for usage in Pulsar OS
-This kernel config is optimized for use with [DPDK](https://dpdk.org)
+Custom PulsarOS kernel packaging with DPDK runtime profiles.
 
-It is assumed that Debian 12 Bookworm is used as base os.
-To use this kernel run the next sequence of scripts:
-1. Run `fetch-upstream.sh` to fetch the latest 6.x linux kernel
-2. Run `update-spec.sh` to bump the version and update checksums for sources
-3. Run `build-rpm.sh` to build and install RPMs or run `build-make.sh` to build in more conventional way. Build scripts are made for RHEL systems.
-## Known issues
-1. `scripts/build-rpm.sh` needs root privileges (or passwordless sudo) when required build dependencies are missing.
+`VERSION` is the default kernel version. Set `KVER=...` or pass a version argument
+to override it where supported.
+
+## Build
+
+```bash
+scripts/fetch-upstream.sh
+scripts/update-spec.sh
+INSTALL_RPMS=0 scripts/build-rpm.sh
+```
+
+Install the generated RPM on the target host.
+
+## Runtime Profile
+
+```bash
+scripts/render-cmdline.sh profiles/dpdk-bench.env
+sudo scripts/install-dpdk-profile.sh profiles/dpdk-bench.env
+sudo reboot
+```
+
+Profiles:
+
+- `profiles/dpdk-small.env`: conservative development profile.
+- `profiles/dpdk-bench.env`: benchmark profile with low-latency flags.
+- `profiles/dpdk-vm.env`: VM/SR-IOV guest profile.
+
+## Runtime Helpers
+
+```bash
+scripts/dpdk-status.sh
+sudo scripts/bind-vfio.sh 0000:01:00.0
+sudo scripts/unbind-vfio.sh --driver ixgbe 0000:01:00.0
+sudo scripts/set-irqs.sh profiles/dpdk-bench.env
+sudo scripts/set-performance-governor.sh
+```
