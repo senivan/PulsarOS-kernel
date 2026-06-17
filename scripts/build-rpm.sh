@@ -86,6 +86,7 @@ if [[ ${#patch_files[@]} -gt 0 ]]; then
   cp -r "${patch_files[@]}" "${RPMBUILD_TOPDIR}/SOURCES/"
 fi
 cp "${ROOT}"/config/*.config "${RPMBUILD_TOPDIR}/SOURCES/config"
+cp "${ROOT}/config/base.config" "${RPMBUILD_TOPDIR}/SOURCES/base.config"
 cp "${ROOT}"/scripts/*.sh "${RPMBUILD_TOPDIR}/SOURCES/scripts"
 cp "${ROOT}"/profiles/*.env "${RPMBUILD_TOPDIR}/SOURCES/profiles"
 cp "${ROOT}"/systemd/*.service "${RPMBUILD_TOPDIR}/SOURCES/systemd"
